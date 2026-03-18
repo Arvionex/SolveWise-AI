@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { User } from "firebase/auth";
 import { UserProfile, Language } from "../types";
 import { solveProblem } from "../services/ai";
-import { db } from "../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Loader2, ArrowLeft, Send, CheckCircle2, AlertCircle, IndianRupee, Zap, Mic, MicOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { addMockProblem } from "../mockData";
 
 interface ProblemSolverProps {
-  user: User | null;
+  user: any;
   profile: UserProfile | null;
   lang: Language;
   t: (key: string) => string;
@@ -87,8 +85,8 @@ export function ProblemSolver({ user, profile, lang, t, category, setView }: Pro
       const solution = await solveProblem(problem, category);
       setResult(solution);
 
-      // Save to Firestore
-      await addDoc(collection(db, "problems"), {
+      // Save to mock DB
+      await addMockProblem({
         user_id: user.uid,
         problem_text: problem,
         ai_solution: JSON.stringify(solution),

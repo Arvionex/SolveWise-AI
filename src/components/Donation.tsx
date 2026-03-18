@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
-import { User } from "firebase/auth";
 import { UserProfile, Language, Donation as DonationType } from "../types";
-import { db } from "../firebase";
-import { collection, addDoc, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
-import { Heart, Send, Trophy, Loader2, CheckCircle2, Sparkles } from "lucide-react";
+import { Heart, Trophy, Loader2, CheckCircle2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { getMockDonations, addMockDonation } from "../mockData";
 
 interface DonationProps {
-  user: User | null;
+  user: any;
   profile: UserProfile | null;
   lang: Language;
   t: (key: string) => string;
@@ -24,23 +22,12 @@ export function Donation({ user, profile, lang, t }: DonationProps) {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, "donations"), orderBy("amount", "desc"), limit(10));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DonationType));
-      setDonations(docs);
-    });
-
-    // Calculate total raised
-    const qTotal = query(collection(db, "donations"));
-    const unsubTotal = onSnapshot(qTotal, (snapshot) => {
-      const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().amount || 0), 0);
-      setTotalRaised(total);
-    });
-
-    return () => {
-      unsubscribe();
-      unsubTotal();
+    const fetchData = async () => {
+      const d = await getMockDonations();
+      setDonations(d.sort((a, b) => b.amount - a.amount).slice(0, 10));
+      setTotalRaised(d.reduce((acc, curr) => acc + curr.amount, 0));
     };
+    fetchData();
   }, []);
 
   const handleRazorpayPayment = async (finalAmount: number) => {
@@ -53,12 +40,11 @@ export function Donation({ user, profile, lang, t }: DonationProps) {
       image: "https://picsum.photos/seed/solvewise/200/200",
       handler: async function (response: any) {
         try {
-          await addDoc(collection(db, "donations"), {
+          await addMockDonation({
             user_id: user?.uid || "anonymous",
             displayName: profile?.displayName || "Anonymous Donor",
             amount: finalAmount,
             message,
-            payment_id: response.razorpay_payment_id,
             timestamp: new Date().toISOString(),
           });
           setSuccess(true);

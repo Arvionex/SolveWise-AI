@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
-import { User } from "firebase/auth";
-import { db } from "../firebase";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { Problem, Language } from "../types";
 import { Clock, ChevronRight, MessageSquare } from "lucide-react";
+import { getMockProblems } from "../mockData";
 
 interface HistoryProps {
-  user: User | null;
+  user: any;
   lang: Language;
   t: (key: string) => string;
 }
@@ -16,17 +14,13 @@ export function History({ user, lang, t }: HistoryProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-    const q = query(
-      collection(db, "problems"),
-      where("user_id", "==", user.uid),
-      orderBy("timestamp", "desc")
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setProblems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Problem)));
+    const fetchHistory = async () => {
+      if (!user) return;
+      const p = await getMockProblems();
+      setProblems(p.filter(problem => problem.user_id === user.uid));
       setLoading(false);
-    });
-    return unsubscribe;
+    };
+    fetchHistory();
   }, [user]);
 
   if (!user) return <div className="text-center py-12 font-bold text-slate-500">Please login to see history</div>;

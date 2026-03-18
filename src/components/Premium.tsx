@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { User } from "firebase/auth";
 import { UserProfile, Language } from "../types";
-import { db } from "../firebase";
-import { doc, updateDoc } from "firebase/firestore";
 import { Check, Zap, Shield, Crown, Loader2 } from "lucide-react";
 
 interface PremiumProps {
-  user: User | null;
+  user: any;
   profile: UserProfile | null;
   lang: Language;
   t: (key: string) => string;
@@ -37,10 +34,8 @@ export function Premium({ user, profile, lang, t }: PremiumProps) {
         description: "Premium Subscription",
         order_id: order.id,
         handler: async (response: any) => {
-          // Update user role in Firestore
-          await updateDoc(doc(db, "users", user.uid), {
-            role: "premium"
-          });
+          // Update user role in mock DB
+          alert("Upgraded to Premium! (Mock)");
           window.location.reload();
         },
         prefill: {

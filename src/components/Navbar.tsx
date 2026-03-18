@@ -1,10 +1,9 @@
-import { User } from "firebase/auth";
 import { UserProfile, Language } from "../types";
 import { Globe, LogIn, LogOut, Menu, X, Shield } from "lucide-react";
 import { useState } from "react";
 
 interface NavbarProps {
-  user: User | null;
+  user: any;
   profile: UserProfile | null;
   lang: Language;
   setLang: (lang: Language) => void;

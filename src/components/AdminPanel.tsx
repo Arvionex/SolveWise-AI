@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { db } from "../firebase";
-import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { Problem, UserProfile, Donation } from "../types";
 import { Shield, Users, MessageSquare, TrendingUp, Check, X, Download, Heart } from "lucide-react";
+import { mockDb, getMockProblems, getMockDonations } from "../mockData";
 
 interface AdminPanelProps {
   lang: string;
@@ -16,30 +15,19 @@ export function AdminPanel({ lang, t }: AdminPanelProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const qProblems = query(collection(db, "problems"), orderBy("timestamp", "desc"), limit(50));
-    const qUsers = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(50));
-    const qDonations = query(collection(db, "donations"), orderBy("timestamp", "desc"), limit(100));
-
-    const unsubProblems = onSnapshot(qProblems, (snap) => {
-      setProblems(snap.docs.map(d => ({ id: d.id, ...d.data() } as Problem)));
-    });
-    const unsubUsers = onSnapshot(qUsers, (snap) => {
-      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as UserProfile)));
-    });
-    const unsubDonations = onSnapshot(qDonations, (snap) => {
-      setDonations(snap.docs.map(d => ({ id: d.id, ...d.data() } as Donation)));
+    const fetchData = async () => {
+      const p = await getMockProblems();
+      const d = await getMockDonations();
+      setProblems(p);
+      setDonations(d);
+      setUsers([mockDb.user]);
       setLoading(false);
-    });
-
-    return () => {
-      unsubProblems();
-      unsubUsers();
-      unsubDonations();
     };
+    fetchData();
   }, []);
 
   const togglePublic = async (id: string, current: boolean) => {
-    await updateDoc(doc(db, "problems", id), { is_public: !current });
+    setProblems(prev => prev.map(p => p.id === id ? { ...p, is_public: !current } : p));
   };
 
   const exportDonors = () => {

@@ -1,7 +1,4 @@
 import { useState, useEffect, Component, ErrorInfo, ReactNode, Suspense } from "react";
-import { auth, db } from "./firebase";
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 import { UserProfile, Language } from "./types";
 import { TRANSLATIONS } from "./constants";
 import { Navbar } from "./components/Navbar";
@@ -14,6 +11,7 @@ import { Premium } from "./components/Premium";
 import { Donation } from "./components/Donation";
 import { AdminPanel } from "./components/AdminPanel";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { mockDb } from "./mockData";
 
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
@@ -76,7 +74,7 @@ function LoadingFallback() {
 }
 
 function AppContent() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [lang, setLang] = useState<Language>("en");
   const [loading, setLoading] = useState(true);
@@ -87,59 +85,25 @@ function AppContent() {
   const t = (key: string) => TRANSLATIONS[key]?.[lang] || key;
 
   useEffect(() => {
-    // Safety timeout to prevent infinite loading screen
+    // Simulate auth check
     const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.warn("Auth check timed out, proceeding to app...");
-        setLoading(false);
-      }
-    }, 5000);
-
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        try {
-          const docRef = doc(db, "users", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            const newProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email || "",
-              displayName: user.displayName || "User",
-              role: "free",
-              createdAt: new Date().toISOString(),
-            };
-            await setDoc(docRef, newProfile);
-            setProfile(newProfile);
-          }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-        }
-      } else {
-        setProfile(null);
-      }
+      setUser({ uid: mockDb.user.uid, email: mockDb.user.email, displayName: mockDb.user.displayName });
+      setProfile(mockDb.user);
       setLoading(false);
-      clearTimeout(timeoutId);
-    });
+    }, 1000);
 
-    return () => {
-      unsubscribe();
-      clearTimeout(timeoutId);
-    };
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed", error);
-    }
+    setUser({ uid: mockDb.user.uid, email: mockDb.user.email, displayName: mockDb.user.displayName });
+    setProfile(mockDb.user);
   };
 
-  const handleLogout = () => signOut(auth);
+  const handleLogout = () => {
+    setUser(null);
+    setProfile(null);
+  };
 
   if (loading) {
     return <LoadingFallback />;
