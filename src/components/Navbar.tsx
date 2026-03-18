@@ -46,10 +46,16 @@ export function Navbar({ user, profile, lang, setLang, handleLogin, handleLogout
 
               {user ? (
                 <div className="flex items-center gap-4">
-                  {profile?.role === "admin" && (
-                    <button onClick={() => setView("admin")} className="text-amber-600 font-black text-sm">ADMIN</button>
+                  {user.email === "9211ravikumar2@gmail.com" && (
+                    <button 
+                      onClick={() => setView("admin")} 
+                      className="flex items-center gap-2 bg-amber-100 text-amber-600 px-4 py-2 rounded-xl font-black text-xs tracking-widest hover:bg-amber-200 transition-all shadow-sm"
+                    >
+                      <Shield className="w-4 h-4" />
+                      ADMIN
+                    </button>
                   )}
-                  <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-bold hover:text-red-600">
+                  <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-bold hover:text-red-600 transition-colors p-2 hover:bg-red-50 rounded-lg">
                     <LogOut className="w-5 h-5" />
                   </button>
                 </div>
@@ -81,9 +87,20 @@ export function Navbar({ user, profile, lang, setLang, handleLogin, handleLogout
               <Globe className="w-5 h-5" /> {lang === "en" ? "Hindi" : "English"}
             </button>
             {user ? (
-              <button onClick={handleLogout} className="text-red-500 font-bold">{t("logout")}</button>
+              <div className="flex flex-col gap-4">
+                {user.email === "9211ravikumar2@gmail.com" && (
+                  <button 
+                    onClick={() => { setView("admin"); setIsOpen(false); }} 
+                    className="flex items-center gap-2 bg-amber-100 text-amber-600 px-4 py-3 rounded-xl font-black text-sm tracking-widest"
+                  >
+                    <Shield className="w-5 h-5" />
+                    ADMIN PANEL
+                  </button>
+                )}
+                <button onClick={handleLogout} className="text-red-500 font-bold text-left px-4 py-2">{t("logout")}</button>
+              </div>
             ) : (
-              <button onClick={handleLogin} className="bg-blue-600 text-white py-3 rounded-xl font-bold">{t("login")}</button>
+              <button onClick={() => { handleLogin(); setIsOpen(false); }} className="bg-blue-600 text-white py-3 rounded-xl font-bold w-full">{t("login")}</button>
             )}
           </div>
         </div>

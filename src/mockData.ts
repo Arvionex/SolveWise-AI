@@ -53,8 +53,8 @@ const MOCK_DONATIONS: Donation[] = [
 
 const MOCK_USER: UserProfile = {
   uid: "mock-user",
-  email: "mock@example.com",
-  displayName: "Mock User",
+  email: "9211ravikumar2@gmail.com",
+  displayName: "Mock Admin",
   role: "admin",
   createdAt: new Date().toISOString()
 };

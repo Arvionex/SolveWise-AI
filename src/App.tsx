@@ -2,6 +2,7 @@ import { useState, useEffect, Component, ErrorInfo, ReactNode, Suspense } from "
 import { UserProfile, Language } from "./types";
 import { TRANSLATIONS } from "./constants";
 import { Navbar } from "./components/Navbar";
+import { LoginModal } from "./components/LoginModal";
 import { Hero } from "./components/Hero";
 import { CategoryGrid } from "./components/CategoryGrid";
 import { ProblemSolver } from "./components/ProblemSolver";
@@ -12,6 +13,8 @@ import { Donation } from "./components/Donation";
 import { AdminPanel } from "./components/AdminPanel";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { mockDb } from "./mockData";
+import { auth } from "./firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
@@ -79,30 +82,50 @@ function AppContent() {
   const [lang, setLang] = useState<Language>("en");
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("tech");
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   
   const navigate = useNavigate();
 
   const t = (key: string) => TRANSLATIONS[key]?.[lang] || key;
 
   useEffect(() => {
-    // Simulate auth check
-    const timeoutId = setTimeout(() => {
-      setUser({ uid: mockDb.user.uid, email: mockDb.user.email, displayName: mockDb.user.displayName });
-      setProfile(mockDb.user);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const email = firebaseUser.email || "";
+        if (email === "9211ravikumar2@gmail.com") {
+          setUser({ uid: firebaseUser.uid, email: email, displayName: firebaseUser.displayName || "Admin" });
+          setProfile({ ...mockDb.user, uid: firebaseUser.uid, email: email });
+        } else {
+          const newUser: UserProfile = { 
+            uid: firebaseUser.uid, 
+            email: email, 
+            displayName: firebaseUser.displayName || email.split("@")[0], 
+            role: "free", 
+            createdAt: new Date().toISOString() 
+          };
+          setUser(newUser);
+          setProfile(newUser);
+        }
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
       setLoading(false);
-    }, 1000);
+    });
 
-    return () => clearTimeout(timeoutId);
+    return () => unsubscribe();
   }, []);
 
-  const handleLogin = async () => {
-    setUser({ uid: mockDb.user.uid, email: mockDb.user.email, displayName: mockDb.user.displayName });
-    setProfile(mockDb.user);
+  const handleLoginSuccess = () => {
+    setIsLoginModalOpen(false);
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    setProfile(null);
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   if (loading) {
@@ -122,10 +145,17 @@ function AppContent() {
         profile={profile} 
         lang={lang} 
         setLang={setLang} 
-        handleLogin={handleLogin} 
+        handleLogin={() => setIsLoginModalOpen(true)} 
         handleLogout={handleLogout} 
         setView={setView}
         t={t}
+      />
+
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+        onLoginSuccess={handleLoginSuccess} 
+        t={t} 
       />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
@@ -150,7 +180,7 @@ function AppContent() {
           <Route path="/community" element={<Community lang={lang} t={t} />} />
           <Route path="/premium" element={<Premium user={user} profile={profile} lang={lang} t={t} />} />
           <Route path="/donation" element={<Donation user={user} profile={profile} lang={lang} t={t} />} />
-          <Route path="/admin" element={profile?.role === "admin" ? <AdminPanel lang={lang} t={t} /> : <div className="text-center py-20 font-black text-slate-300">UNAUTHORIZED</div>} />
+          <Route path="/admin" element={user?.email === "9211ravikumar2@gmail.com" ? <AdminPanel lang={lang} t={t} /> : <div className="text-center py-20 font-black text-slate-300">UNAUTHORIZED</div>} />
         </Routes>
       </main>
 
