@@ -1,0 +1,5 @@
+{
+  "name": "SolveWise AI",
+  "description": "AI-powered problem solver for everyday life challenges. Get instant solutions for career, health, tech, and more.",
+  "requestFramePermissions": ["microphone"]
+}

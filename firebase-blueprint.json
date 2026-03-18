@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["free", "premium", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Problem": {
+      "title": "Problem",
+      "description": "A problem submitted by a user",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "problem_text": { "type": "string" },
+        "image_url": { "type": "string" },
+        "audio_url": { "type": "string" },
+        "category": { "type": "string" },
+        "ai_solution": { "type": "string" },
+        "is_public": { "type": "boolean" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "problem_text", "category", "ai_solution"]
+    },
+    "Donation": {
+      "title": "Donation",
+      "description": "A donation made by a user",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "displayName": { "type": "string" },
+        "amount": { "type": "number" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["amount", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "problems/{problemId}": {
+      "schema": "Problem",
+      "description": "Submitted problems and AI solutions"
+    },
+    "donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Platform donations"
+    }
+  }
+}
