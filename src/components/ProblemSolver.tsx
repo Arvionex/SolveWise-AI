@@ -94,8 +94,12 @@ export function ProblemSolver({ user, profile, lang, t, category, setView }: Pro
         is_public: true,
         timestamp: new Date().toISOString(),
       });
-    } catch (err) {
-      setError("Failed to generate solution. Please try again.");
+    } catch (err: any) {
+      if (err.message === "API_KEY_MISSING") {
+        setError("Gemini API Key is missing. Please set GEMINI_API_KEY in your environment variables.");
+      } else {
+        setError("Failed to generate solution. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

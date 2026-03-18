@@ -1,9 +1,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AISolution } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+      throw new Error("API_KEY_MISSING");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
 
 export async function solveProblem(problem: string, category: string): Promise<AISolution> {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: `Problem: ${problem}\nCategory: ${category}`,
@@ -40,6 +52,7 @@ export async function solveProblem(problem: string, category: string): Promise<A
 }
 
 export async function detectProblemFromImage(base64Image: string, mimeType: string): Promise<string> {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: [
