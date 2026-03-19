@@ -46,6 +46,10 @@ export function Navbar({ user, profile, lang, setLang, handleLogin, handleLogout
 
               {user ? (
                 <div className="flex items-center gap-4">
+                  <div className="hidden lg:flex flex-col items-end">
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Logged in as</span>
+                    <span className="text-sm font-bold text-slate-700">{user.email}</span>
+                  </div>
                   {user.email === "9211ravikumar2@gmail.com" && (
                     <button 
                       onClick={() => setView("admin")} 
@@ -55,8 +59,12 @@ export function Navbar({ user, profile, lang, setLang, handleLogin, handleLogout
                       ADMIN
                     </button>
                   )}
-                  <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-bold hover:text-red-600 transition-colors p-2 hover:bg-red-50 rounded-lg">
-                    <LogOut className="w-5 h-5" />
+                  <button 
+                    onClick={handleLogout} 
+                    className="flex items-center gap-2 text-red-500 font-bold hover:text-red-600 transition-colors p-2 hover:bg-red-50 rounded-lg group"
+                    title={t("logout")}
+                  >
+                    <LogOut className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
               ) : (

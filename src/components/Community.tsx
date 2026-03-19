@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Problem, Language } from "../types";
 import { Users, Search, MessageSquare } from "lucide-react";
-import { getMockProblems } from "../mockData";
+import { db, handleFirestoreError, OperationType } from "../firebase";
+import { collection, query, where, orderBy, onSnapshot, limit } from "firebase/firestore";
 
 interface CommunityProps {
   lang: Language;
@@ -14,12 +15,22 @@ export function Community({ lang, t }: CommunityProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const fetchProblems = async () => {
-      const p = await getMockProblems();
-      setProblems(p.filter(problem => problem.is_public));
+    const q = query(
+      collection(db, "problems"),
+      where("is_public", "==", true),
+      orderBy("timestamp", "desc"),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const p = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Problem));
+      setProblems(p);
       setLoading(false);
-    };
-    fetchProblems();
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "problems");
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const filteredProblems = problems.filter(p => 

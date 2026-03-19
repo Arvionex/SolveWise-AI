@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.user_id;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "9211ravikumar2@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.email.matches("^[a-zA-Z0-9._%+-]+@gmail\\.com$") &&
+             data.role in ['free', 'premium', 'admin'];
+    }
+
+    function isValidProblem(data) {
+      return data.keys().hasAll(['user_id', 'problem_text', 'category', 'ai_solution']) &&
+             data.user_id is string &&
+             data.problem_text is string && data.problem_text.size() < 5000 &&
+             data.category is string &&
+             data.ai_solution is string;
+    }
+
+    function isValidDonation(data) {
+      return data.keys().hasAll(['amount', 'timestamp']) &&
+             data.amount is number && data.amount > 0;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'free';
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Problems
+    match /problems/{problemId} {
+      allow read: if isAuthenticated() && (resource.data.is_public == true || isDocOwner() || isAdmin());
+      allow create: if isAuthenticated() && isValidProblem(request.resource.data) && request.resource.data.user_id == request.auth.uid;
+      allow update: if (isDocOwner() && isValidProblem(request.resource.data) && request.resource.data.user_id == resource.data.user_id) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Donations
+    match /donations/{donationId} {
+      allow read: if true;
+      allow create: if isValidDonation(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

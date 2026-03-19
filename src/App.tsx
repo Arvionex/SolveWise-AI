@@ -12,9 +12,9 @@ import { Premium } from "./components/Premium";
 import { Donation } from "./components/Donation";
 import { AdminPanel } from "./components/AdminPanel";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
-import { mockDb } from "./mockData";
-import { auth } from "./firebase";
+import { auth, db, handleFirestoreError, OperationType } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
@@ -33,6 +33,21 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
   render() {
     if (this.state.hasError) {
+      let errorMessage = "We've encountered an unexpected error. Please try refreshing the page.";
+      let isFirestoreError = false;
+      
+      try {
+        if (this.state.error?.message) {
+          const parsed = JSON.parse(this.state.error.message);
+          if (parsed.error && parsed.operationType) {
+            errorMessage = `Database Error: ${parsed.error}. Operation: ${parsed.operationType}`;
+            isFirestoreError = true;
+          }
+        }
+      } catch (e) {
+        // Not a JSON error
+      }
+
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
           <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full text-center border border-red-100">
@@ -43,7 +58,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
             </div>
             <h1 className="text-2xl font-black text-slate-900 mb-4">Something went wrong</h1>
             <p className="text-slate-500 font-medium mb-8">
-              We've encountered an unexpected error. Please try refreshing the page.
+              {errorMessage}
             </p>
             <button 
               onClick={() => window.location.reload()}
@@ -89,22 +104,33 @@ function AppContent() {
   const t = (key: string) => TRANSLATIONS[key]?.[lang] || key;
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && firebaseUser.email?.toLowerCase().endsWith("@gmail.com")) {
         const email = firebaseUser.email || "";
-        if (email === "9211ravikumar2@gmail.com") {
-          setUser({ uid: firebaseUser.uid, email: email, displayName: firebaseUser.displayName || "Admin" });
-          setProfile({ ...mockDb.user, uid: firebaseUser.uid, email: email });
-        } else {
-          const newUser: UserProfile = { 
-            uid: firebaseUser.uid, 
-            email: email, 
-            displayName: firebaseUser.displayName || email.split("@")[0], 
-            role: "free", 
-            createdAt: new Date().toISOString() 
-          };
-          setUser(newUser);
-          setProfile(newUser);
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        
+        try {
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            const data = userDoc.data() as UserProfile;
+            setUser({ uid: firebaseUser.uid, email: email, displayName: firebaseUser.displayName || data.displayName });
+            setProfile(data);
+          } else {
+            // Create new profile
+            const newProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              email: email,
+              displayName: firebaseUser.displayName || email.split("@")[0],
+              role: email === "9211ravikumar2@gmail.com" ? "admin" : "free",
+              createdAt: new Date().toISOString()
+            };
+            await setDoc(userDocRef, newProfile);
+            setUser({ uid: firebaseUser.uid, email: email, displayName: newProfile.displayName });
+            setProfile(newProfile);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, "users/" + firebaseUser.uid);
         }
       } else {
         setUser(null);
@@ -115,6 +141,21 @@ function AppContent() {
 
     return () => unsubscribe();
   }, []);
+
+  // Listen for profile changes
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const unsubscribe = onSnapshot(doc(db, "users", user.uid), (doc) => {
+      if (doc.exists()) {
+        setProfile(doc.data() as UserProfile);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "users/" + user.uid);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const handleLoginSuccess = () => {
     setIsLoginModalOpen(false);

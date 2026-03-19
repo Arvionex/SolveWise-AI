@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { X, Mail, Lock, LogIn, Loader2, UserPlus } from "lucide-react";
+import { X, LogIn, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth } from "../firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { auth, googleProvider } from "../firebase";
+import { signInWithPopup, signOut } from "firebase/auth";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -12,38 +12,34 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ isOpen, onClose, onLoginSuccess, t }: LoginModalProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSignIn = async () => {
     setLoading(true);
     setError("");
 
     try {
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      if (!user.email?.toLowerCase().endsWith("@gmail.com")) {
+        setError("Only Gmail addresses (@gmail.com) are allowed.");
+        await signOut(auth);
+        return;
       }
+
       onLoginSuccess();
     } catch (err: any) {
       console.error("Auth error:", err);
       let message = "Authentication failed. Please try again.";
       
-      if (err.code === "auth/network-request-failed") {
-        message = "Network error. Please check your internet connection or ensure this domain is authorized in Firebase Console.";
-      } else if (err.code === "auth/email-already-in-use") {
-        message = "This email is already registered. Please login instead.";
-      } else if (err.code === "auth/invalid-credential") {
-        message = "Invalid email or password. Please try again.";
-      } else if (err.code === "auth/weak-password") {
-        message = "Password is too weak. It must be at least 6 characters.";
-      } else if (err.code === "auth/invalid-email") {
-        message = "Please enter a valid email address.";
+      if (err.code === "auth/popup-closed-by-user") {
+        message = "Sign-in popup was closed before completion.";
+      } else if (err.code === "auth/unauthorized-domain") {
+        message = "This domain is not authorized for Firebase Auth. Please add the app domains to your Firebase Console.";
+      } else if (err.code === "auth/network-request-failed") {
+        message = "Network error. Please check your internet connection.";
       } else if (err.message) {
         message = err.message;
       }
@@ -80,85 +76,61 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess, t }: LoginModalPro
                 <X className="w-6 h-6" />
               </button>
 
-              <div className="mb-8">
-                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg mb-6">
-                  {isSignUp ? <UserPlus className="w-8 h-8" /> : <LogIn className="w-8 h-8" />}
+              <div className="mb-8 text-center">
+                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg mb-6 mx-auto">
+                  <LogIn className="w-8 h-8" />
                 </div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
-                  {isSignUp ? "Create Account" : "Welcome Back"}
+                  Welcome Back
                 </h2>
                 <p className="text-slate-500 font-medium">
-                  {isSignUp ? "Join SolveWise AI today." : "Login to access your personalized AI solutions."}
+                  Login to access your personalized AI solutions.
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {error && (
-                  <p className="text-red-500 text-sm font-bold ml-1 animate-in fade-in slide-in-from-left-2">
-                    {error}
-                  </p>
-                )}
-
+              <div className="space-y-4">
                 <button
-                  type="submit"
+                  onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-3 hover:bg-blue-700 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all shadow-lg"
+                  className="w-full flex items-center justify-center gap-4 bg-white border-2 border-slate-100 py-4 px-6 rounded-2xl font-black text-slate-700 hover:bg-slate-50 hover:border-slate-200 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 transition-all group"
                 >
                   {loading ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                   ) : (
                     <>
-                      {isSignUp ? <UserPlus className="w-6 h-6" /> : <LogIn className="w-6 h-6" />}
-                      {isSignUp ? "Sign Up Now" : "Login Now"}
+                      <svg className="w-6 h-6 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                        <path
+                          fill="#4285F4"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                        />
+                        <path
+                          fill="#EA4335"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                        />
+                      </svg>
+                      Continue with Google
                     </>
                   )}
                 </button>
-              </form>
+
+                {error && (
+                  <p className="text-red-500 text-sm font-bold text-center animate-in fade-in slide-in-from-top-2">
+                    {error}
+                  </p>
+                )}
+              </div>
 
               <div className="mt-8 pt-8 border-t border-slate-100 text-center">
-                <p className="text-slate-400 text-sm font-medium">
-                  {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-                  <button 
-                    type="button"
-                    onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-blue-600 font-black hover:underline"
-                  >
-                    {isSignUp ? "Login" : "Sign Up"}
-                  </button>
+                <p className="text-slate-400 text-xs font-medium uppercase tracking-widest">
+                  Secure Gmail Access Only
                 </p>
               </div>
             </div>

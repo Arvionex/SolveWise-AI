@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Problem, UserProfile, Donation } from "../types";
 import { Shield, Users, MessageSquare, TrendingUp, Check, X, Download, Heart } from "lucide-react";
-import { mockDb, getMockProblems, getMockDonations } from "../mockData";
+import { db, handleFirestoreError, OperationType } from "../firebase";
+import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 
 interface AdminPanelProps {
   lang: string;
@@ -15,19 +16,33 @@ export function AdminPanel({ lang, t }: AdminPanelProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const p = await getMockProblems();
-      const d = await getMockDonations();
-      setProblems(p);
-      setDonations(d);
-      setUsers([mockDb.user]);
-      setLoading(false);
+    const unsubProblems = onSnapshot(query(collection(db, "problems"), orderBy("timestamp", "desc")), (snapshot) => {
+      setProblems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Problem)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "problems"));
+
+    const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+      setUsers(snapshot.docs.map(doc => ({ ...doc.data() } as UserProfile)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "users"));
+
+    const unsubDonations = onSnapshot(query(collection(db, "donations"), orderBy("timestamp", "desc")), (snapshot) => {
+      setDonations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Donation)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "donations"));
+
+    setLoading(false);
+
+    return () => {
+      unsubProblems();
+      unsubUsers();
+      unsubDonations();
     };
-    fetchData();
   }, []);
 
   const togglePublic = async (id: string, current: boolean) => {
-    setProblems(prev => prev.map(p => p.id === id ? { ...p, is_public: !current } : p));
+    try {
+      await updateDoc(doc(db, "problems", id), { is_public: !current });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, "problems/" + id);
+    }
   };
 
   const exportDonors = () => {
