@@ -101,7 +101,7 @@ export function ProblemSolver({ user, profile, lang, t, category, setView }: Pro
       }
     } catch (err: any) {
       if (err.message === "API_KEY_MISSING") {
-        setError("Gemini API Key is missing. Please set GEMINI_API_KEY in your environment variables.");
+        setError("Gemini API Key is missing. Please set VITE_GEMINI_API_KEY in your environment variables.");
       } else {
         setError("Failed to generate solution. Please try again.");
       }

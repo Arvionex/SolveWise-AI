@@ -52,41 +52,65 @@ export function Donation({ user, profile, lang, t }: DonationProps) {
   }, []);
 
   const handleRazorpayPayment = async (finalAmount: number) => {
-    const options = {
-      key: "rzp_test_YOUR_KEY_HERE", // User should replace this
-      amount: finalAmount * 100,
-      currency: "INR",
-      name: "SolveWise AI",
-      description: "Community Support Donation",
-      image: "https://picsum.photos/seed/solvewise/200/200",
-      handler: async function (response: any) {
-        try {
-          await addDoc(collection(db, "donations"), {
-            user_id: user?.uid || "anonymous",
-            displayName: profile?.displayName || "Anonymous Donor",
-            amount: finalAmount,
-            message,
-            timestamp: new Date().toISOString(),
-          });
-          setSuccess(true);
-          setMessage("");
-          setAmount(100);
-          setTimeout(() => setSuccess(false), 5000);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, "donations");
-        }
-      },
-      prefill: {
-        name: profile?.displayName || "",
-        email: user?.email || "",
-      },
-      theme: {
-        color: "#2563eb",
-      },
-    };
+    try {
+      // 1. Create order on the server
+      const response = await fetch("/api/payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount: finalAmount }),
+      });
 
-    const rzp = new (window as any).Razorpay(options);
-    rzp.open();
+      if (!response.ok) {
+        throw new Error("Failed to create order");
+      }
+
+      const order = await response.json();
+
+      const options = {
+        key: (import.meta as any).env.VITE_RAZORPAY_KEY_ID || "rzp_test_YOUR_KEY_HERE",
+        amount: order.amount,
+        currency: order.currency,
+        name: "SolveWise AI",
+        description: "Community Support Donation",
+        image: "https://picsum.photos/seed/solvewise/200/200",
+        order_id: order.id,
+        handler: async function (response: any) {
+          try {
+            await addDoc(collection(db, "donations"), {
+              user_id: user?.uid || "anonymous",
+              displayName: profile?.displayName || "Anonymous Donor",
+              amount: finalAmount,
+              message,
+              timestamp: new Date().toISOString(),
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            setSuccess(true);
+            setMessage("");
+            setAmount(100);
+            setTimeout(() => setSuccess(false), 5000);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.CREATE, "donations");
+          }
+        },
+        prefill: {
+          name: profile?.displayName || "",
+          email: user?.email || "",
+        },
+        theme: {
+          color: "#2563eb",
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error("Payment initialization failed", error);
+      alert("Failed to initialize payment. Please check your configuration.");
+    }
   };
 
   const handleDonate = async () => {

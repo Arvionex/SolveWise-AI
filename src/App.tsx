@@ -2,7 +2,6 @@ import { useState, useEffect, Component, ErrorInfo, ReactNode, Suspense } from "
 import { UserProfile, Language } from "./types";
 import { TRANSLATIONS } from "./constants";
 import { Navbar } from "./components/Navbar";
-import { LoginModal } from "./components/LoginModal";
 import { Hero } from "./components/Hero";
 import { CategoryGrid } from "./components/CategoryGrid";
 import { ProblemSolver } from "./components/ProblemSolver";
@@ -11,9 +10,9 @@ import { Community } from "./components/Community";
 import { Premium } from "./components/Premium";
 import { Donation } from "./components/Donation";
 import { AdminPanel } from "./components/AdminPanel";
+import { Logo } from "./components/Logo";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
-import { auth, db, handleFirestoreError, OperationType } from "./firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { db, handleFirestoreError, OperationType } from "./firebase";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 // Error Boundary Component
@@ -92,82 +91,25 @@ function LoadingFallback() {
 }
 
 function AppContent() {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<any>({
+    uid: "guest-user",
+    email: "guest@solvewise.ai",
+    displayName: "Guest User"
+  });
+  const [profile, setProfile] = useState<UserProfile | null>({
+    uid: "guest-user",
+    email: "guest@solvewise.ai",
+    displayName: "Guest User",
+    role: "free",
+    createdAt: new Date().toISOString()
+  });
   const [lang, setLang] = useState<Language>("en");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("tech");
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   
   const navigate = useNavigate();
 
   const t = (key: string) => TRANSLATIONS[key]?.[lang] || key;
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser && firebaseUser.email?.toLowerCase().endsWith("@gmail.com")) {
-        const email = firebaseUser.email || "";
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        
-        try {
-          const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists()) {
-            const data = userDoc.data() as UserProfile;
-            setUser({ uid: firebaseUser.uid, email: email, displayName: firebaseUser.displayName || data.displayName });
-            setProfile(data);
-          } else {
-            // Create new profile
-            const newProfile: UserProfile = {
-              uid: firebaseUser.uid,
-              email: email,
-              displayName: firebaseUser.displayName || email.split("@")[0],
-              role: email === "9211ravikumar2@gmail.com" ? "admin" : "free",
-              createdAt: new Date().toISOString()
-            };
-            await setDoc(userDocRef, newProfile);
-            setUser({ uid: firebaseUser.uid, email: email, displayName: newProfile.displayName });
-            setProfile(newProfile);
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, "users/" + firebaseUser.uid);
-        }
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Listen for profile changes
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const unsubscribe = onSnapshot(doc(db, "users", user.uid), (doc) => {
-      if (doc.exists()) {
-        setProfile(doc.data() as UserProfile);
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "users/" + user.uid);
-    });
-
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  const handleLoginSuccess = () => {
-    setIsLoginModalOpen(false);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
 
   if (loading) {
     return <LoadingFallback />;
@@ -182,21 +124,10 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <Navbar 
-        user={user} 
-        profile={profile} 
         lang={lang} 
         setLang={setLang} 
-        handleLogin={() => setIsLoginModalOpen(true)} 
-        handleLogout={handleLogout} 
         setView={setView}
         t={t}
-      />
-
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-        onLoginSuccess={handleLoginSuccess} 
-        t={t} 
       />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
@@ -225,9 +156,12 @@ function AppContent() {
         </Routes>
       </main>
 
-      <footer className="bg-white border-t border-slate-200 py-8 mt-12">
-        <div className="max-w-4xl mx-auto px-4 text-center text-slate-500 text-sm">
-          <p>© 2026 SolveWise AI. {t("tagline")}</p>
+      <footer className="bg-white border-t border-slate-200 py-12 mt-12">
+        <div className="max-w-4xl mx-auto px-4 flex flex-col items-center gap-6">
+          <Logo className="opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500" />
+          <div className="text-center text-slate-500 text-sm">
+            <p>© 2026 SolveWise AI. {t("tagline")}</p>
+          </div>
         </div>
       </footer>
     </div>
